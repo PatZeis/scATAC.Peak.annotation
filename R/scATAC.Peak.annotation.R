@@ -338,7 +338,7 @@ peaks_on_gene <- function(peak_features,annotations=NULL, gene_element=NULL, spl
           distances <- lapply(distances, function(x) {paste(x, collapse = "|")})
           distances <- unlist(distances)
           gene_left <- paste0(gene_left, ";", gene_names, ";", chr_index[[chr]][["strand"]][index], ";", "TSS.overlap.dist.Pstart.", ";", as.character(distances), ";", ".")
-           gene_left <- sub("\\;-;TSS.overlap.dist.+", ";-;.;.;.", gene_left)
+          gene_left <- sub("\\;-;TSS.overlap.dist.+", ";-;3prime.overlap;.;.", gene_left)
         } ### do also for right and mid
         if (length(gene_right) > 0) {
           index <- which(right1 & right2)
@@ -349,7 +349,7 @@ peaks_on_gene <- function(peak_features,annotations=NULL, gene_element=NULL, spl
           distances <- lapply(distances, function(x) {paste(x, collapse = "|")})
           distances <- unlist(distances)
           gene_right <- paste0(gene_right, ";", gene_names, ";", chr_index[[chr]][["strand"]][index], ";" , "TSS.overlap.dist.Pend.", ";", as.character(distances), ";", ".")
-          gene_right <- sub(";\\+;TSS.overlap.dist.+", ";+;.;.;.", gene_right)
+          gene_right <- sub(";\\+;TSS.overlap.dist.+", ";+;3prime.overlap;.;.", gene_right)
         }
         if (length(gene_mid) > 0) {
           ### for alternative TSS
