@@ -374,7 +374,7 @@ peaks_on_gene <- function(peak_features,annotations=NULL, gene_element=NULL, spl
 			    x
 			}
 		 	else{
-			    x
+			   gene_right[x]
 			}	
 
 		       }, gene_right=gene_right, TSSset=TSSset))
