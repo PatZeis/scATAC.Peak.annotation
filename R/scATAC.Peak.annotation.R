@@ -339,20 +339,20 @@ peaks_on_gene <- function(peak_features,annotations=NULL, gene_element=NULL, spl
           distances <- unlist(distances)
           gene_left <- paste0(gene_left, ";", gene_names, ";", chr_index[[chr]][["strand"]][index], ";", "TSS.overlap.dist.Pstart.", ";", as.character(distances), ";", ".")
           gene_left <- sub("\\;-;TSS.overlap.dist.+", ";-;3prime.overlap;.;.", gene_left)
-	  gene_left <- unlist(lapply(gene_left, function(x){
-                       if (grepl("3prime", x)) {
-		           distances <- lapply(TSSset, function(y) {as.numeric(y) - peak_end})
+	  gene_left <- unlist(lapply(seq_along(gene_left), function(x, gene_left, TSSset){
+                       if (grepl("3prime", gene_left[x])) {
+		           distances <- lapply(TSSset[x], function(y) {as.numeric(y) - peak_end})
                            distances <- lapply(distances, function(y) {paste(y, collapse = "|")})
                            distances <- unlist(distances)
-			   x <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), x)
+			   x <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), gene_left[x])
 			   x
                        }
 		       else{
-		           x
+		           gene_left[x]
 		       }
 
 					       
-                       }))
+                       },gene_left=gene_left, TSSset=TSSset ))
           
         } ### do also for right and mid
         if (length(gene_right) > 0) {
@@ -365,19 +365,19 @@ peaks_on_gene <- function(peak_features,annotations=NULL, gene_element=NULL, spl
           distances <- unlist(distances)
           gene_right <- paste0(gene_right, ";", gene_names, ";", chr_index[[chr]][["strand"]][index], ";" , "TSS.overlap.dist.Pend.", ";", as.character(distances), ";", ".")
           gene_right <- sub(";\\+;TSS.overlap.dist.+", ";+;3prime.overlap;.;.", gene_right)
-	  gene_right <- unlist(lapply(gene_right, function(x){
-                        if (grepl("3prime", x)) {
-			    distances <- lapply(TSSset, function(y) { peak_start - as.numeric(y) })
+	  gene_right <- unlist(lapply(seq_along(gene_right), function(x, gene_right, TSSset){
+                        if (grepl("3prime", gene_right[x])) {
+			    distances <- lapply(TSSset[x], function(y) { peak_start - as.numeric(y) })
 			    distances <- lapply(distances, function(y) {paste(y, collapse = "|")})
 			    distances <- unlist(distances)
-			    x <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), x)
+			    x <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), gene_right[x])
 			    x
 			}
 		 	else{
 			    x
 			}	
 
-		       }))
+		       }, gene_right=gene_right, TSSset=TSSset))
           	      
         }
         if (length(gene_mid) > 0) {
