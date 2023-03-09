@@ -344,7 +344,7 @@ peaks_on_gene <- function(peak_features,annotations=NULL, gene_element=NULL, spl
 		           distances <- lapply(TSSset, function(y) {as.numeric(y) - peak_end})
                            distances <- lapply(distances, function(y) {paste(y, collapse = "|")})
                            distances <- unlist(distances)
-			   x <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), gene_left)
+			   x <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), x)
 			   x
                        }
 		       else{
@@ -370,7 +370,7 @@ peaks_on_gene <- function(peak_features,annotations=NULL, gene_element=NULL, spl
 			    distances <- lapply(TSSset, function(y) { peak_start - as.numeric(y) })
 			    distances <- lapply(distances, function(y) {paste(y, collapse = "|")})
 			    distances <- unlist(distances)
-			    x <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), gene_right)
+			    x <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), x)
 			    x
 			}
 		 	else{
