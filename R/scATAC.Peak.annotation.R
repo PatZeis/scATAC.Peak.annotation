@@ -593,7 +593,7 @@ peaks_closest_gene <- function(peaks, annotations=NULL, gene_element=NULL, TSSmo
     peaks_annotated <- peaks[peaks[, "gene_id"] != "nomatch",]
     if ( TSSmode==T){
       cat("cbind_peaks_on_gene", "\n")
-      peaks_annotated_end <- peaks_annotated[grep("TSS", peaks_annotated[, "TSSinfo"], invert = T), , drop=FALSE]
+      peaks_annotated_end <- peaks_annotated[grep("3prime", peaks_annotated[, "TSSinfo"]), , drop=FALSE]
       peaks_annotated_end <- cbind(peaks_annotated_end,
                                    closest_downstream_gene_id=rep("", nrow(peaks_annotated_end)),
                                    closest_downstream_gene=rep("", nrow(peaks_annotated_end)),
