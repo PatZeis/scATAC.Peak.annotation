@@ -332,24 +332,36 @@ peaks_on_gene <- function(peak_features,annotations=NULL, gene_element=NULL, spl
         if ( length(gene_left) > 0  ) {
           index <- which(left1 & left2)
           gene_names <- chr_index[[chr]][["gene_names"]][index]
-          distances <- chr_index[[chr]][["TSSset"]][index]
-          distances <- strsplit(distances, "\\|")
-          distances <- lapply(distances, function(x) {as.numeric(x) - peak_start})
+          TSSset <- chr_index[[chr]][["TSSset"]][index]
+          TSSset <- strsplit(TSSset, "\\|")
+          distances <- lapply(TSSset, function(x) {as.numeric(x) - peak_start})
           distances <- lapply(distances, function(x) {paste(x, collapse = "|")})
           distances <- unlist(distances)
           gene_left <- paste0(gene_left, ";", gene_names, ";", chr_index[[chr]][["strand"]][index], ";", "TSS.overlap.dist.Pstart.", ";", as.character(distances), ";", ".")
           gene_left <- sub("\\;-;TSS.overlap.dist.+", ";-;3prime.overlap;.;.", gene_left)
+	  if (grepl("3prime", gene_left)) {
+              distances <- lapply(TSSset, function(x) {as.numeric(x) - peak_end})
+	      distances <- lapply(distances, function(x) {paste(x, collapse = "|")})
+	      distances <- unlist(distances)
+              gene_left <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), gene_left)
+          }
         } ### do also for right and mid
         if (length(gene_right) > 0) {
           index <- which(right1 & right2)
           gene_names <- chr_index[[chr]][["gene_names"]][index]
-          distances <- chr_index[[chr]][["TSSset"]][index]
-          distances <- strsplit(distances, "\\|")
-          distances <- lapply(distances, function(x) { peak_end - as.numeric(x) })
+          TSSset <- chr_index[[chr]][["TSSset"]][index]
+          TSSset <- strsplit(TSSset, "\\|")
+          distances <- lapply(TSSset, function(x) { peak_end - as.numeric(x) })
           distances <- lapply(distances, function(x) {paste(x, collapse = "|")})
           distances <- unlist(distances)
           gene_right <- paste0(gene_right, ";", gene_names, ";", chr_index[[chr]][["strand"]][index], ";" , "TSS.overlap.dist.Pend.", ";", as.character(distances), ";", ".")
           gene_right <- sub(";\\+;TSS.overlap.dist.+", ";+;3prime.overlap;.;.", gene_right)
+	  if (grepl("3prime", gene_right)) {
+              distances <- lapply(TSSset, function(x) { peak_start - as.numeric(x) }) 
+              distances <- lapply(distances, function(x) {paste(x, collapse = "|")})
+              distances <- unlist(distances)
+              gene_right <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), gene_right)	      
+          }		      
         }
         if (length(gene_mid) > 0) {
           ### for alternative TSS
