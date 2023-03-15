@@ -332,24 +332,53 @@ peaks_on_gene <- function(peak_features,annotations=NULL, gene_element=NULL, spl
         if ( length(gene_left) > 0  ) {
           index <- which(left1 & left2)
           gene_names <- chr_index[[chr]][["gene_names"]][index]
-          distances <- chr_index[[chr]][["TSSset"]][index]
-          distances <- strsplit(distances, "\\|")
-          distances <- lapply(distances, function(x) {as.numeric(x) - peak_start})
+          TSSset <- chr_index[[chr]][["TSSset"]][index]
+          TSSset <- strsplit(TSSset, "\\|")
+          distances <- lapply(TSSset, function(x) {as.numeric(x) - peak_start})
           distances <- lapply(distances, function(x) {paste(x, collapse = "|")})
           distances <- unlist(distances)
           gene_left <- paste0(gene_left, ";", gene_names, ";", chr_index[[chr]][["strand"]][index], ";", "TSS.overlap.dist.Pstart.", ";", as.character(distances), ";", ".")
-           gene_left <- sub("\\;-;TSS.overlap.dist.+", ";-;.;.;.", gene_left)
+          gene_left <- sub("\\;-;TSS.overlap.dist.+", ";-;3prime.overlap;.;.", gene_left)
+	  gene_left <- unlist(lapply(seq_along(gene_left), function(x, gene_left, TSSset){
+                       if (grepl("3prime", gene_left[x])) {
+		           distances <- lapply(TSSset[x], function(y) {as.numeric(y) - peak_end})
+                           distances <- lapply(distances, function(y) {paste(y, collapse = "|")})
+                           distances <- unlist(distances)
+			   x <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), gene_left[x])
+			   x
+                       }
+		       else{
+		           gene_left[x]
+		       }
+
+					       
+                       },gene_left=gene_left, TSSset=TSSset ))
+          
         } ### do also for right and mid
         if (length(gene_right) > 0) {
           index <- which(right1 & right2)
           gene_names <- chr_index[[chr]][["gene_names"]][index]
-          distances <- chr_index[[chr]][["TSSset"]][index]
-          distances <- strsplit(distances, "\\|")
-          distances <- lapply(distances, function(x) { peak_end - as.numeric(x) })
+          TSSset <- chr_index[[chr]][["TSSset"]][index]
+          TSSset <- strsplit(TSSset, "\\|")
+          distances <- lapply(TSSset, function(x) { peak_end - as.numeric(x) })
           distances <- lapply(distances, function(x) {paste(x, collapse = "|")})
           distances <- unlist(distances)
           gene_right <- paste0(gene_right, ";", gene_names, ";", chr_index[[chr]][["strand"]][index], ";" , "TSS.overlap.dist.Pend.", ";", as.character(distances), ";", ".")
-          gene_right <- sub(";\\+;TSS.overlap.dist.+", ";+;.;.;.", gene_right)
+          gene_right <- sub(";\\+;TSS.overlap.dist.+", ";+;3prime.overlap;.;.", gene_right)
+	  gene_right <- unlist(lapply(seq_along(gene_right), function(x, gene_right, TSSset){
+                        if (grepl("3prime", gene_right[x])) {
+			    distances <- lapply(TSSset[x], function(y) { peak_start - as.numeric(y) })
+			    distances <- lapply(distances, function(y) {paste(y, collapse = "|")})
+			    distances <- unlist(distances)
+			    x <- sub("3prime.overlap;\\.", paste0("3prime.overlap.dist.TSS;", distances), gene_right[x])
+			    x
+			}
+		 	else{
+			   gene_right[x]
+			}	
+
+		       }, gene_right=gene_right, TSSset=TSSset))
+          	      
         }
         if (length(gene_mid) > 0) {
           ### for alternative TSS
@@ -564,7 +593,7 @@ peaks_closest_gene <- function(peaks, annotations=NULL, gene_element=NULL, TSSmo
     peaks_annotated <- peaks[peaks[, "gene_id"] != "nomatch",]
     if ( TSSmode==T){
       cat("cbind_peaks_on_gene", "\n")
-      peaks_annotated_end <- peaks_annotated[grep("TSS", peaks_annotated[, "TSSinfo"], invert = T), , drop=FALSE]
+      peaks_annotated_end <- peaks_annotated[grep("3prime", peaks_annotated[, "TSSinfo"]), , drop=FALSE]
       peaks_annotated_end <- cbind(peaks_annotated_end,
                                    closest_downstream_gene_id=rep("", nrow(peaks_annotated_end)),
                                    closest_downstream_gene=rep("", nrow(peaks_annotated_end)),
