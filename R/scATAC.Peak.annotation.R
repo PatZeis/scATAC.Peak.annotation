@@ -103,28 +103,30 @@ get_annotation <- function(path_gtf, skip=5, coding="protein_coding", filter_reg
   cat("get_transcript_coding_information", "\n")
   transcript_biotype <- extract_attribute(annotations$V9, "transcript_biotype", "no_transcript_biotype")
   annotations <- cbind(annotations, transcript_biotype=transcript_biotype)
+  if (!is.null(coding)) {
   if (filter_transcript_biotype){
     annotations <- annotations[annotations$transcript_biotype %in% coding,]
   }
   else{
     annotations <- annotations[annotations$gene_biotype %in%  coding | annotations$transcript_biotype %in% coding,]}
+  }
   cat("retrieve gene ID", "\n")
   gene_id <- extract_attribute(annotations$V9, "gene_id", "")
   if (any(gene_id == "")) {
-      stop("gene_id missing in annotation attributes")
+    stop("gene_id missing in annotation attributes")
   }
   cat("retrieve gene name", "\n")
   gene_name <- extract_attribute(annotations$V9, "gene_name", "")
   gene_name[gene_name == ""] <- gene_id[gene_name == ""]
   annotations <- cbind(annotations, gene_name=gene_name)
   annotations <- cbind(annotations, gene_id=gene_id)
-
+  
   if (TSL){
     cat("retrieve gene TSL", "\n")
     get_tsl <- extract_attribute(annotations$V9, "transcript_support_level", "no_TSL")
     annotations <- cbind(annotations, TSL=get_tsl)
   }
-
+  
   colnames <- c("seqnames", "genome_build", "gene_region", "start", "end", "score", "strand", "frame", "gene_info", "gene_biotype", "transcript_biotype", "gene_name", "gene_id")
   if (TSL) {
     colnames(annotations) <- c(colnames, "TSL")
@@ -141,17 +143,15 @@ get_annotation <- function(path_gtf, skip=5, coding="protein_coding", filter_reg
   TSS_pos[which(gene_element$strand == "-")] <- gene_element$end[which(gene_element$strand == "-")]
   TSS_pos <- as.character(TSS_pos)
   gene_element <- cbind(gene_element, TSSrange=TSS_pos, TSSset=TSS_pos)
-
-  # Use gene_id, rather than gene_name as the latter is not always unique
-  # (e.g., rRNAs)
+  
   non_unique <- names(table(gene_element$gene_id)[table(gene_element$gene_id) != 1 ])
   cat("collapse genes to locus", "\n")
-
+  
   cores <- as.numeric(availableCores() -2)
   cat("available_cores:", cores, "\n")
   start_time <- Sys.time()
   plan(future::multicore,workers = cores )
-
+  
   non_unique_collapse <- future.apply::future_lapply(seq_along(non_unique), function(x, non_unique, gene_element, TSL) {
     index <- which(gene_element$gene_id == non_unique[x])
     uni <- gene_element[index[1],]
@@ -176,9 +176,9 @@ get_annotation <- function(path_gtf, skip=5, coding="protein_coding", filter_reg
   }, non_unique=non_unique, gene_element=gene_element, TSL=TSL)
   end_time <- Sys.time()
   cat(paste("done", "time", difftime(end_time, start_time, units="secs"), "s", "\n", sep = " "))
-
+  
   non_unique_collapse <- do.call(rbind, non_unique_collapse)
-
+  
   
   gene_element <- rbind(gene_element[!gene_element$gene_id %in% non_unique,], non_unique_collapse)
   
@@ -188,6 +188,9 @@ get_annotation <- function(path_gtf, skip=5, coding="protein_coding", filter_reg
     cat(dim(gene_element), "\n")
   }
   anno_list <- list(annotations[order(annotations$gene_name),], gene_element[order(gene_element$gene_name),])
+  if (is.null(coding)) {
+    coding = "nocoding"
+  }
   names(anno_list) <- c("annotation", paste("transcript", paste(coding, collapse = "_"), sep = "_"))
   end_time2 <- Sys.time()
   cat(paste("overall computing", "time", difftime(end_time2, start_time2, units="secs"), "s", "\n", sep = " "))
@@ -814,86 +817,100 @@ give_combined_peaks <- function(atac_layer, filter_reg_chr=F) {
 #' @param do.aggregate logical. If \code{T}, aggregate provided peak-cell count matrix across the common overlapping peak set.
 #' @param peak_matrix Peak-cell count matrix. With rows representing peaks and columns representing cells.
 #' @param insert_run1 output of function with do.aggregate = \code{F}, i.e. matrix with a row for each peak, containing chromosome information, start- and end position and annotated peak with combined peak set
-#' @return If \code{do.aggregate} = \code{F}: matrix with a row for each peak, containing chromosome information, start- and end position and annotated peak with combined peak set. If \code{do.aggregate} = \code{T} and \code{peak_matrix} provided:
+#' @param flash_seq logical. If \code{T}, assumes input as count matrix with gene_ids as rownames and aggregates counts of gene_ids corressponding to the same gene_name.
+#' @return If \code{do.aggregate} = \code{F}: matrix with a row for each peak, containing chromosome information, start- and end position and annotated peak with combined peak set. If \code{do.aggregate} = \code{T} , \code{peak_matrix} provided and \code{flash_seq} = \code{T}:matrix of counts aggregated across gene_ids annotated to the same gene_name.If \code{do.aggregate} = \code{T} , \code{peak_matrix} provided and \code{flash_seq} = \code{F}:
 #'   \item{agg.comb.peaks}{aggregated peak-cell count matrix across the common overlapping peak set.}
-#'   \item{peaks.combined}{data.frame with a row for each peak, containing chromosome information, start- and end position and annotated peak with combined peak set.}
+#'   \item{peaks.combined}{data.frame with a row for each peak, containing chromosome information, start- and end position and annotated peak with combined peak set.}.
 #' @examples
 #' overlapped_peaks <- peak_overlap(peak_features=rownames(merged_atac_filt), combined.peaks=combined.peaks)
 #' overlapped_peaks <- peak_overlap(do.aggregate=T, peak_matrix=merged_atac_filt,insert_run1 = overlapped_peaks)
 #' @export
-
-peak_overlap <- function(peak_features=NULL, combined.peaks=NULL, do.aggregate=F,peak_matrix=NULL, insert_run1=NULL ) {
+peak_overlap <- function(peak_features=NULL, combined.peaks=NULL, do.aggregate=F,peak_matrix=NULL, insert_run1=NULL, flash_seq=F ) {
   if (do.aggregate==T) {
     if(is.null(peak_matrix)) { stop("if do.aggregate=T, peak_matrix has to be provided")}
   }
   if (is.null(insert_run1)) {
-  if(is.null(peak_features ) || is.null(combined.peaks)) {stop("both 'peak_features' and 'combined.peaks' need to be provided")}
-  start_time2 <- Sys.time()
-  chromosomes <- unique(as.character(combined.peaks@seqnames))
-  gene_chrom_index <- list()
-  for ( i in 1:length(chromosomes)){
-    gene_chrom_index[[chromosomes[i]]] <- list()
-    index <- which(as.character(combined.peaks@seqnames) == chromosomes[i])
-    gene_chrom_index[[chromosomes[i]]][["starts"]] <- as.numeric(data.frame(combined.peaks@ranges)$start)[index]
-    gene_chrom_index[[chromosomes[i]]][["ends"]] <- as.numeric(data.frame(combined.peaks@ranges)$end)[index]
-    gene_chrom_index[[chromosomes[i]]][["gene_names"]] <-   paste0(chromosomes[i], ":", gene_chrom_index[[chromosomes[i]]][["starts"]], "-", gene_chrom_index[[chromosomes[i]]][["ends"]])
-  }
-  peaks <- lapply(peak_features, function(x) {
-    strsplit(x, split = "[-:]")[[1]]
-  })
-  peak_features <- c()
-  if( class(as.numeric(peaks[[1]][2])) != "numeric" ) {stop("peak_features need to contain numeric start and end")}
-  if( class(as.numeric(peaks[[1]][3])) != "numeric" ) {stop("peak_features need to contain numeric start and end")}
-  peaks <- do.call(rbind, peaks)
-
-  cores <- as.numeric(availableCores() -2)
-  cat("available_cores:", cores, "\n")
-  computing <- cores*1000
-  peak_list <- create_data_chunks(peaks, computing)
-  peaks <- c()
-  plan(future::multicore,workers = cores )
-  n_processing <- 0
-  for (n in 1:length(peak_list)) {
-    cat("get overlapping peaks", "\n")
-    n_processing <- n_processing +  nrow(peak_list[[n]])
-    cat("processing_rows " , n*computing-(computing-1), " to ", min(n_processing, n*computing), " ")
-    start_time <- Sys.time()
-    peak_list[[n]] <- future_lapply(seq_along(1:nrow(peak_list[[n]])), function(x, peaks, chr_index) {
-      chr <- peaks[x,1]
-      peak_start <- as.numeric(peaks[x,2])
-      peak_end <- as.numeric(peaks[x,3])
-      starts <- chr_index[[chr]][["starts"]]
-      ends <- chr_index[[chr]][["ends"]]
-
-      mid1 <- starts <= peak_start ### peak on the gene
-      mid2 <- ends >= peak_end
-      gene_names <- chr_index[[chr]][["gene_names"]][mid1 & mid2]
-      return(c(chr, peak_start, peak_end, gene_names))
-    },peaks=peak_list[[n]],chr_index=gene_chrom_index)
-    peak_list[[n]] <- do.call(rbind, peak_list[[n]])
-    end_time <- Sys.time()
-    cat(paste("done", "time", difftime(end_time, start_time, units="secs"), "s", "\n", sep = " "))
-  }
-  plan(future::sequential)
-  peaks_combined <- do.call(rbind, peak_list)
-  peak_list <- c()
-  rownames(peaks_combined) <- paste0(peaks_combined[,1],":", peaks_combined[,2], "-", peaks_combined[,3])
-  colnames(peaks_combined) <- c("seqnames", "start", "end", "combined_peaks")
-  end_time2 <- Sys.time()
-  cat(paste("overall computing", "time", difftime(end_time2, start_time2, units="secs"), "s", "\n", sep = " "))
+    if(is.null(peak_features ) || is.null(combined.peaks)) {stop("both 'peak_features' and 'combined.peaks' need to be provided")}
+    start_time2 <- Sys.time()
+    chromosomes <- unique(as.character(combined.peaks@seqnames))
+    gene_chrom_index <- list()
+    for ( i in 1:length(chromosomes)){
+      gene_chrom_index[[chromosomes[i]]] <- list()
+      index <- which(as.character(combined.peaks@seqnames) == chromosomes[i])
+      gene_chrom_index[[chromosomes[i]]][["starts"]] <- as.numeric(data.frame(combined.peaks@ranges)$start)[index]
+      gene_chrom_index[[chromosomes[i]]][["ends"]] <- as.numeric(data.frame(combined.peaks@ranges)$end)[index]
+      gene_chrom_index[[chromosomes[i]]][["gene_names"]] <-   paste0(chromosomes[i], ":", gene_chrom_index[[chromosomes[i]]][["starts"]], "-", gene_chrom_index[[chromosomes[i]]][["ends"]])
+    }
+    peaks <- lapply(peak_features, function(x) {
+      strsplit(x, split = "[-:]")[[1]]
+    })
+    peak_features <- c()
+    if( class(as.numeric(peaks[[1]][2])) != "numeric" ) {stop("peak_features need to contain numeric start and end")}
+    if( class(as.numeric(peaks[[1]][3])) != "numeric" ) {stop("peak_features need to contain numeric start and end")}
+    peaks <- do.call(rbind, peaks)
+    
+    cores <- as.numeric(availableCores() -2)
+    cat("available_cores:", cores, "\n")
+    computing <- cores*1000
+    peak_list <- create_data_chunks(peaks, computing)
+    peaks <- c()
+    plan(future::multicore,workers = cores )
+    n_processing <- 0
+    for (n in 1:length(peak_list)) {
+      cat("get overlapping peaks", "\n")
+      n_processing <- n_processing +  nrow(peak_list[[n]])
+      cat("processing_rows " , n*computing-(computing-1), " to ", min(n_processing, n*computing), " ")
+      start_time <- Sys.time()
+      peak_list[[n]] <- future_lapply(seq_along(1:nrow(peak_list[[n]])), function(x, peaks, chr_index) {
+        chr <- peaks[x,1]
+        peak_start <- as.numeric(peaks[x,2])
+        peak_end <- as.numeric(peaks[x,3])
+        starts <- chr_index[[chr]][["starts"]]
+        ends <- chr_index[[chr]][["ends"]]
+        
+        mid1 <- starts <= peak_start ### peak on the gene
+        mid2 <- ends >= peak_end
+        gene_names <- chr_index[[chr]][["gene_names"]][mid1 & mid2]
+        return(c(chr, peak_start, peak_end, gene_names))
+      },peaks=peak_list[[n]],chr_index=gene_chrom_index)
+      peak_list[[n]] <- do.call(rbind, peak_list[[n]])
+      end_time <- Sys.time()
+      cat(paste("done", "time", difftime(end_time, start_time, units="secs"), "s", "\n", sep = " "))
+    }
+    plan(future::sequential)
+    peaks_combined <- do.call(rbind, peak_list)
+    peak_list <- c()
+    rownames(peaks_combined) <- paste0(peaks_combined[,1],":", peaks_combined[,2], "-", peaks_combined[,3])
+    colnames(peaks_combined) <- c("seqnames", "start", "end", "combined_peaks")
+    end_time2 <- Sys.time()
+    cat(paste("overall computing", "time", difftime(end_time2, start_time2, units="secs"), "s", "\n", sep = " "))
   }
   else{
     peaks_combined <- insert_run1
+    if (flash_seq) {
+      rownames(peaks_combined) <- peaks_combined[,"gene_id"]
+    }
   }
   if (do.aggregate==T) {
     if (class(peak_matrix) != "dgCMatrix" ) {
+      if (sum(class(peak_matrix) %in% c("matrix","data.frame")) >0){
+        peak_matrix <- Matrix(as.matrix(peak_matrix), sparse=T)
+      }
+      else{
       stop("please provide 'peak_matrix' as sparce matrix in dgCMatrix format")
+      }
     }
     cat("aggregate overlapping peaks", "\n")
+    if (flash_seq) {
+      combined_peaks_matrix <- aggregate.Matrix(peak_matrix, as.factor(peaks_combined[rownames(peak_matrix),"gene_name"]), fun = "sum")
+      cat("done aggregate overlapping peaks", "\n")
+      return(combined_peaks_matrix)
+    }
+    else{
     combined_peaks_matrix <- aggregate.Matrix(peak_matrix, as.factor(peaks_combined[,4]), fun = "sum")
     cat("done aggregate overlapping peaks", "\n")
     combined_list <- list(agg.comb.peaks=combined_peaks_matrix, peaks.combined=peaks_combined)
-    return(combined_list)
+    return(combined_list)}
   }
   else{
     return(peaks_combined)}

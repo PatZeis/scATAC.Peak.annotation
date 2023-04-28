@@ -89,6 +89,7 @@ This function annotates peaks which have been called on different samples, and t
 merged_atac_filt <- merge_samples(atac_layer) ## merges peak-cell matrix for each samples exhibiting a slot in atac_layer list
 overlapped_peaks <- peak_overlap(peak_features=rownames(merged_atac_filt), combined.peaks=combined.peaks)
 overlapped_peaks <- peak_overlap(do.aggregate=T, peak_matrix=merged_atac_filt,insert_run1 = overlapped_peaks)
+aggregated_counts <- peak_overlap(do.aggregate=T, peak_matrix=counts, insert_run1=annotation, flash_seq=T)
 ```
 
 
