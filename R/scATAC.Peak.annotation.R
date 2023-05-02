@@ -902,8 +902,10 @@ peak_overlap <- function(peak_features=NULL, combined.peaks=NULL, do.aggregate=F
     }
     cat("aggregate overlapping peaks", "\n")
     if (flash_seq) {
-      combined_peaks_matrix <- aggregate.Matrix(peak_matrix, as.factor(rownames(peak_matrix)), fun = "sum")
-      rownames(combined_peaks_matrix) <- peaks_combined[rownames(combined_peaks_matrix), "gene_name"]
+      peak_matrix2 <- peak_matrix[!rownames(peak_matrix) %in% peaks_combined,]
+      peak_matrix <- peak_matrix[rownames(peak_matrix) %in% peaks_combined,]
+      combined_peaks_matrix <- aggregate.Matrix(peak_matrix, as.factor(peaks_combined[rownames(peak_matrix),"gene_name"]), fun = "sum")	   
+      combined_peaks_matrix <- rbind(combined_peaks_matrix, Matrix(as.matrix(peak_matrix2), sparse=T)) 
       cat("done aggregate overlapping peaks", "\n")
       return(combined_peaks_matrix)
     }
