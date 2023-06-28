@@ -26,7 +26,7 @@ gtf <- "~/genomes/Homo_sapiens.GRCh38.106.gtf"
 ####Examples
 ``` r
 anno <- get_annotation(gtf)
-anno2 <- get_annotation(gtf, coding = c("processed_transcript", "protein_coding"), TSL=T, TSLfilt = 1)
+anno2 <- get_annotation(gtf, coding = c("processed_transcript", "protein_coding"), TSL=T, TSLfilt = "1")
 ```
 
 
