@@ -902,7 +902,7 @@ peak_overlap <- function(peak_features=NULL, combined.peaks=NULL, do.aggregate=F
     }
     cat("aggregate overlapping peaks", "\n")
     if (flash_seq) {
-      peak_matrix2 <- peak_matrix[!rownames(peak_matrix) %in% rownames(peaks_combined),]
+      peak_matrix2 <- peak_matrix[!rownames(peak_matrix) %in% rownames(peaks_combined),] ### bug version was not used but deprecated version which does not sum over the same gene name
       peak_matrix <- peak_matrix[rownames(peak_matrix) %in% rownames(peaks_combined),]
       combined_peaks_matrix <- aggregate.Matrix(peak_matrix, as.factor(peaks_combined[rownames(peak_matrix),"gene_name"]), fun = "sum")	   
       combined_peaks_matrix <- rbind(combined_peaks_matrix, Matrix(as.matrix(peak_matrix2), sparse=T)) 
