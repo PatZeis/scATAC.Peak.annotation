@@ -190,7 +190,7 @@ get_annotation <- function(path_gtf, skip=5, coding="protein_coding", filter_reg
   if (gene_region != "transcript"){
   index_col <- grep("TSS", colnames(gene_element))
   index_col_names <- colnames(gene_element)[index_col]
-  index_col_names <- sub("T", strsplit(gene_region, "")[[1]][1], index_col_names)
+  index_col_names <- sub("T", toupper(strsplit(gene_region, "")[[1]][1]), index_col_names)
   colnames(gene_element)[index_col] <- index_col_names
   }
   anno_list <- list(annotations[order(annotations$gene_name),], gene_element[order(gene_element$gene_name),])
