@@ -90,12 +90,12 @@ extract_attribute <- function(annot_attributes, attribute, return_msg) {
 #' anno_test <- get_annotation(gtf, TSL=T, TSLfilt=1)
 #' anno_test <- get_annotation(gtf, TSL=T, TSLfilt=c(1,2))
 #' @export
-get_annotation <- function(path_gtf, skip=5, coding="protein_coding", filter_reg_chr=T, TSL=F,TSLfilt=NULL, filter_transcript_biotype=F) {
+get_annotation <- function(path_gtf, skip=5, coding="protein_coding", filter_reg_chr=T, TSL=F,TSLfilt=NULL, filter_transcript_biotype=F, gene_region="transcript") {
   start_time2 <- Sys.time()
   cat("read in gtf", "\n")
   annotations <- read.delim(path_gtf, skip=skip, header=F)
   cat("filter_gene_element", "\n")
-  annotations <- annotations[annotations$V3 == "transcript",]
+  annotations <- annotations[annotations$V3 == gene_region,]
   cat("get_coding_information_and_filter", "\n")
   cat("get_gene_coding_information", "\n")
   gene_biotype <- extract_attribute(annotations$V9, "gene_biotype", "no_gene_biotype")
@@ -143,7 +143,7 @@ get_annotation <- function(path_gtf, skip=5, coding="protein_coding", filter_reg
   TSS_pos[which(gene_element$strand == "-")] <- gene_element$end[which(gene_element$strand == "-")]
   TSS_pos <- as.character(TSS_pos)
   gene_element <- cbind(gene_element, TSSrange=TSS_pos, TSSset=TSS_pos)
-  
+
   non_unique <- names(table(gene_element$gene_id)[table(gene_element$gene_id) != 1 ])
   cat("collapse genes to locus", "\n")
   
@@ -187,11 +187,18 @@ get_annotation <- function(path_gtf, skip=5, coding="protein_coding", filter_reg
     gene_element <- gene_element[grep("^chr|^X$|^Y$|^MT$|^M$|^\\d$|^\\d\\d$", gene_element$seqnames),]
     cat(dim(gene_element), "\n")
   }
+  if (gene_region != "transcript"){
+  index_col <- grep("TSS", colnames(gene_element))
+  index_col_names <- colnames(gene_element)[index_col]
+  index_col_names <- sub("T", strsplit(gene_region, "")[[1]][1], index_col_names)
+  colnames(gene_region)[index_col] <- index_col_names
+  }
   anno_list <- list(annotations[order(annotations$gene_name),], gene_element[order(gene_element$gene_name),])
+    
   if (is.null(coding)) {
     coding = "nocoding"
   }
-  names(anno_list) <- c("annotation", paste("transcript", paste(coding, collapse = "_"), sep = "_"))
+  names(anno_list) <- c("annotation", paste(gene_region, paste(coding, collapse = "_"), sep = "_"))
   end_time2 <- Sys.time()
   cat(paste("overall computing", "time", difftime(end_time2, start_time2, units="secs"), "s", "\n", sep = " "))
   plan(future::sequential)
